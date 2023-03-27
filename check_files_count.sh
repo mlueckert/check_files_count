@@ -1,42 +1,68 @@
 #!/bin/bash
 
-# Define usage function
-usage() {
-    echo "Usage: $0 -p <path> -f <regex filepattern> [-w <warning>] [-c <critical>]"
-    exit 1
-}
+# initialize variables
+warn=10
+crit=20
 
-# Parse arguments
+# parse arguments
 while getopts ":p:f:w:c:" opt; do
-    case $opt in
-        p) path=$OPTARG ;;
-        f) filepattern=$OPTARG ;;
-        w) warning=$OPTARG ;;
-        c) critical=$OPTARG ;;
-        *) usage ;;
-    esac
+  case $opt in
+    p)
+      path="$OPTARG"
+      ;;
+    f)
+      filepattern="$OPTARG"
+      ;;
+    w)
+      warn="$OPTARG"
+      ;;
+    c)
+      crit="$OPTARG"
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 3
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 3
+      ;;
+  esac
 done
 
-# Set default values for warning and critical if not provided
-warning=${warning:-10}
-critical=${critical:-20}
-
-# Check if path and filepattern are provided
-if [ -z "$path" ] || [ -z "$filepattern" ]; then
-    usage
+# check if path and filepattern are specified
+if [[ -z "$path" || -z "$filepattern" ]]; then
+  echo "Usage: $0 -p <path> -f <filepattern> [-w <warning>] [-c <critical>]"
+  exit 3
 fi
 
-# Check count of files matching the filepattern in the specified path and subfolders
-count=$(ls -R $path 2>/dev/null | grep -c -G "$filepattern")
+# check for invalid characters in path and filepattern
+if [[ "$path" =~ [\|\'] || "$filepattern" =~ [\|\'] ]]; then
+  echo "Error: path and filepattern cannot contain pipe or single quote characters"
+  exit 3
+fi
 
-# Output nagios format message
-if [ $count -ge $critical ]; then
-    echo "CRITICAL: $count files found matching '$filepattern' in $path and subfolders | count=$count;$warning;$critical"
-    exit 2
-elif [ $count -ge $warning ]; then
-    echo "WARNING: $count files found matching '$filepattern' in $path and subfolders | count=$count;$warning;$critical"
-    exit 1
+# count files
+count=$(ls -R "$path" 2>/dev/null | grep -c "$filepattern")
+
+# check for errors
+if [[ $? -ne 0 ]]; then
+  echo "UNKNOWN: error counting files"
+  exit 3
+fi
+
+# set status based on count
+if [[ $count -ge $crit ]]; then
+  status="CRITICAL"
+  exitcode=2
+elif [[ $count -ge $warn ]]; then
+  status="WARNING"
+  exitcode=1
 else
-    echo "OK: $count files found matching '$filepattern' in $path and subfolders | count=$count;$warning;$critical"
-    exit 0
+  status="OK"
+  exitcode=0
 fi
+
+# output result in nagios format
+echo "$status - $count files found matching \"$filepattern\" in \"$path\"|count=$count;$warn;$crit;;"
+exit $exitcode
