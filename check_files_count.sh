@@ -65,5 +65,5 @@ else
 fi
 
 # output result in nagios format
-echo "$status - $count files found matching \"$filepattern\" in \"$path\". Use the following command to get the filesizes: ls -lh -R \"$path\" | grep -e \"$filepattern\" |count=$count;$warn;$crit;;"
+echo "$status - $count files found matching \"$filepattern\" in \"$path\". Use the following command to get the filesizes: ls -lh -R \"$path\" [PIPE] grep -e \"$filepattern\" | count=$count;$warn;$crit;;"
 exit $exitcode
