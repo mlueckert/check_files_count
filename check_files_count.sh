@@ -33,6 +33,7 @@ done
 # check if path and filepattern are specified
 if [[ -z "$path" || -z "$filepattern" ]]; then
   echo "Usage: $0 -p <path> -f <filepattern> [-w <warning>] [-c <critical>]"
+  echo "       -f <filepattern> must be a valid regex pattern. (e.g. \"\\.hprof\$\")"
   exit 3
 fi
 
@@ -43,11 +44,11 @@ if [[ "$path" =~ [\|\'] || "$filepattern" =~ [\|\'] ]]; then
 fi
 
 # count files
-count=$(ls -R "$path" 2>/dev/null | grep -c "$filepattern")
+count=$(ls -R "$path" 2>/dev/null | grep -c -e "$filepattern")
 
 # check for errors
-if [[ $? -ne 0 ]]; then
-  echo "UNKNOWN: error counting files"
+if [[ $? -gt 1 ]]; then
+  echo "UNKNOWN: Error counting files. ls return code is > 1."
   exit 3
 fi
 
@@ -64,5 +65,5 @@ else
 fi
 
 # output result in nagios format
-echo "$status - $count files found matching \"$filepattern\" in \"$path\"|count=$count;$warn;$crit;;"
+echo "$status - $count files found matching \"$filepattern\" in \"$path\". Use the following command to get the filesizes: ls -lh -R \"$path\" | grep -e \"$filepattern\" |count=$count;$warn;$crit;;"
 exit $exitcode
